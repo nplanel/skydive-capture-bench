@@ -1,9 +1,9 @@
 #!/bin/bash
 
 
-captureType=afpacket
-replayPackets=681771
-replayPPS="-p 95000"
+captureType=pcap
+replayPackets=5600000
+replayPPS="-p 25000"
 
 export GOMAXPROCS=1
 export SKYDIVE_ANALYZERS=127.0.0.1:8082
@@ -26,7 +26,12 @@ captureUUID=$(skydive client capture create --gremlin 'g.V().Has("Name","innervm
 # sudo tcpdump -nn -U -K   -i innervm1 -w /dev/null
 sleep 2
 
-taskset 04 sudo tcpreplay --unique-ip --unique-ip-loops=1 -l 20000 $replayPPS -K -i vmhost1 ip.pcap
+sudo tcpdump -l -n -i innervm1 "not ip" &
+echo $!
+sleep 0.5
+
+taskset 04 sudo tcpreplay -L 5600000 $replayPPS -i vmhost1 out.pcap
+#taskset 04 sudo tcpreplay --unique-ip --unique-ip-loops=1 -l 20000 $replayPPS -K -i vmhost1 ip.pcap
 
 
 sleep 5
