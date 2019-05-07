@@ -36,8 +36,8 @@ taskset 04 sudo tcpreplay -L 5600000 $replayPPS -i vmhost1 out.pcap
 
 sleep 5
 skydive client query 'g.V().Flows()' > flows.json
-capturePackets=$(grep Packets\" flows.json | awk -F ':' '{ sub(",","",$2); c=c+$2 } END {print c}')
-captureFlows=$(grep ABPackets flows.json | wc -l)
+capturePackets=$((jq '.[].Metric.ABPackets' flows.json; jq '.[].Metric.BAPackets' flows.json) | awk '{ c=c+$1 } END {print c}')
+captureFlows=$(grep LayersPath flows.json | wc -l)
 
 skydive client capture delete $captureUUID
 sudo ip link del dev vmhost1
