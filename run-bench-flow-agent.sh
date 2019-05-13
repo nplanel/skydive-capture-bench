@@ -1,9 +1,9 @@
 #!/bin/bash
 
 
-captureType=pcap
+captureType=ebpf
 replayPackets=5600000
-replayPPS="-p 25000"
+replayPPS="-p 20000"
 
 export GOMAXPROCS=1
 export SKYDIVE_ANALYZERS=127.0.0.1:8082
@@ -14,9 +14,17 @@ skydivepid=$!
 sudo ip link add dev vmhost1 type veth peer name innervm1
 sudo ip link set dev vmhost1 arp off
 sudo ip link set dev vmhost1 multicast off
+sudo ethtool -K vmhost1 tso off
+sudo ethtool -K vmhost1 gso off
+sudo ethtool -K vmhost1 gro off
+sudo ethtool -K vmhost1 lro off
 sudo ip link set dev vmhost1 up
 sudo ip link set dev innervm1 arp off
 sudo ip link set dev innervm1 multicast off
+sudo ethtool -K innervm1 tso off
+sudo ethtool -K innervm1 gso off
+sudo ethtool -K innervm1 gro off
+sudo ethtool -K innervm1 lro off
 sudo ip link set dev innervm1 up
 
 sleep 5
@@ -34,12 +42,12 @@ taskset 04 sudo tcpreplay -L 5600000 $replayPPS -i vmhost1 out.pcap
 #taskset 04 sudo tcpreplay --unique-ip --unique-ip-loops=1 -l 20000 $replayPPS -K -i vmhost1 ip.pcap
 
 
-sleep 15
+sleep 10
 skydive client query 'g.V().Flows()' > flows.json
 capturePackets=$((jq '.[].Metric.ABPackets' flows.json; jq '.[].Metric.BAPackets' flows.json) | awk '{ c=c+$1 } END {print c}')
 captureFlows=$(grep LayersPath flows.json | wc -l)
-captureFlowsTCP=$(grep -e "LayersPath.*TCP" flows.json | wc -l)
-captureFlowsUDP=$(grep -e "LayersPath.*UDP" flows.json | wc -l)
+captureFlowsTCP=$(grep -e "LayersPath.*IPv4/TCP" flows.json | wc -l)
+captureFlowsUDP=$(grep -e "LayersPath.*IPv4/UDP" flows.json | wc -l)
 
 skydive client capture delete $captureUUID
 sudo ip link del dev vmhost1
