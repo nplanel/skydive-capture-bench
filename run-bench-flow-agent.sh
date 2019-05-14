@@ -1,9 +1,13 @@
 #!/bin/bash
 
-
-captureType=ebpf
+captureType=pcap
 replayPackets=5600000
-replayPPS="-p 20000"
+replayPPS="-p 100000"
+
+[[ -n "$1" ]] && captureType=$1
+[[ -n "$2" ]] && replayPPS=$2
+
+PreplayPPS="-p $replayPPS"
 
 export GOMAXPROCS=1
 export SKYDIVE_ANALYZERS=127.0.0.1:8082
@@ -30,16 +34,16 @@ sudo ip link set dev innervm1 up
 sleep 5
 skydive client capture list
 captureUUID=$(skydive client capture create --gremlin 'g.V().Has("Name","innervm1","Type","veth")' --type $captureType | jq '.UUID' | tr -d '"')
-
-# sudo tcpdump -nn -U -K   -i innervm1 -w /dev/null
 sleep 2
 
-sudo tcpdump -l -n -i innervm1 "not ip" &
-echo $!
-sleep 0.5
+# sudo tcpdump -nn -U -K   -i innervm1 -w /dev/null
 
-taskset 04 sudo tcpreplay -L 5600000 $replayPPS -i vmhost1 out.pcap
-#taskset 04 sudo tcpreplay --unique-ip --unique-ip-loops=1 -l 20000 $replayPPS -K -i vmhost1 ip.pcap
+#sudo tcpdump -l -K -N -q -n -i innervm1  >/dev/null &
+#echo $!
+#sleep 0.5
+
+taskset 04 sudo tcpreplay -L 5600000 $PreplayPPS -i vmhost1 out.pcap
+#taskset 04 sudo tcpreplay --unique-ip --unique-ip-loops=1 -l 20000 $PreplayPPS -K -i vmhost1 ip.pcap
 
 
 sleep 10
@@ -57,5 +61,5 @@ sudo killall skydive
 set +x
 sleep 0.5
 echo
-echo "captureType,replayPackets,replayPPS,capturePackets,captureFlows,captureFlowsTCP,captureFlowsUDP"
-echo "$captureType,$replayPackets,$replayPPS,$capturePackets,$captureFlows,$captureFlowsTCP,$captureFlowsUDP"
+#echo "captureType,replayPackets,replayPPS,capturePackets,captureFlows,captureFlowsTCP,captureFlowsUDP"
+echo "$captureType,$replayPackets,$replayPPS,$capturePackets,$captureFlows,$captureFlowsTCP,$captureFlowsUDP" | tee -a perf.csv
